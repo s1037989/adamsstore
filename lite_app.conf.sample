@@ -1,0 +1,15 @@
+{
+  copyright => 'Copyright 2018',
+  pg => 'postgresql://user@%2fvar%2frun%2fpostgresql/dbname', # The socket specified here is a path to a directory
+  stripe => {
+    pk_test => 'pk_test_',
+    sk_test => 'sk_test_',
+    pk_live => 'pk_live_',
+    sk_live => 'sk_live_',
+  },
+  stores => {
+    coolname => {
+      storename => 'The Cool Store',
+    },
+  },
+};

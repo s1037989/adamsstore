@@ -1,0 +1,255 @@
+#!/usr/bin/env perl
+use Mojolicious::Lite;
+
+use lib '/var/mojo/apps/adamsstore/lib';
+use Store::Model::Orders;
+use Mojo::Pg;
+use Mojo::JSON 'j';
+
+plugin 'Config';
+plugin AssetPack => {
+  pipes => [qw(Sass Css JavaScript Fetch Combine)]
+};
+
+app->defaults(store => '');
+helper pg => sub { state $pg = Mojo::Pg->new(shift->config('pg')) };
+helper orders => sub { state $orders = Store::Model::Orders->new(pg => shift->pg) };
+helper is_production => sub {
+  my $c = shift;
+  my $store = $c->param('store');
+  $c->session("${store}mode" => 'production') unless $c->session("${store}mode");
+  $c->session("${store}mode") eq 'production' ? 1 : 0;
+};
+helper 'stripe.key' => sub {
+  my $c = shift;
+  my $ps = shift or return;
+  if ( $c->is_production ) {
+    if ( $ps eq 'public' ) {
+      return $c->app->config('stripe')->{pk_live};
+    } elsif ( $ps eq 'secret' ) {
+      return $c->app->config('stripe')->{sk_live};
+    }
+  } else {
+    if ( $ps eq 'public' ) {
+      return $c->app->config('stripe')->{pk_test};
+    } elsif ( $ps eq 'secret' ) {
+      return $c->app->config('stripe')->{sk_test};
+    }
+  }
+};
+
+my $path = app->home->rel_file('migrations/store.sql');
+app->pg->migrations->name('store')->from_file($path)->migrate;
+
+app->asset->process(
+  "app.js" => ("https://checkout.stripe.com/checkout.js", 'https://unpkg.com/axios/dist/axios.min.js')
+);
+app->asset->process(
+  "app.css" => ('sass/cart.scss', 'https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css')
+);
+
+get '/' => 'home';
+
+under '/:store' => sub {
+  my $c = shift;
+  $c->stash(store => $c->param('store'));
+  $c->stash(config => $c->app->config('stores')->{$c->param('store')});
+};
+get '/' => sub {
+  my $c = shift;
+  $c->render_maybe($c->param('store')) or $c->render('store');
+};
+get '/story' => sub { my $c = shift; $c->render($c->param('store').'/story') };
+get '/mode/:mode' => [qw/test production/] => sub {
+  my $c = shift;
+  my $store = $c->param('store');
+  $c->session("${store}mode" => $c->param('mode'))->redirect_to($c->req->headers->referrer||$c->url_for('store', store => $store));
+} => 'mode';
+get '/store' => {format => 'js'} => sub {
+  my $c = shift;
+  $c->render($c->param('store').'/store');
+};
+post '/checkout' => sub {
+  my $c = shift;
+  my $id = $c->orders->add($c->req->json);
+  $c->render(json => $id ? {id => $id} : {});
+};
+get '/purchase/:id' => sub {
+  my $c = shift;
+  $c->orders->find($c->param('id'));
+  $c->reply->not_found if $c->orders->paid($c->param('id'));
+  $c->stash(cart => $c->orders->find($c->param('id')));
+} => 'purchase';
+post '/send-money/:id' => sub {
+  my $c = shift;
+  $c->render_later;
+  $c->orders->save($c->param('id'), {stripe_token => $c->param('stripeToken'), email => $c->param('stripeEmail'), name => $c->param('name')});
+  my $cart = $c->orders->find($c->param('id'));
+  my $sk = $c->stripe->key('secret');
+  $c->ua->post("https://$sk\@api.stripe.com/v1/charges" => form => {amount => $cart->{carttotal} * 100, currency => 'usd', description => "Order $cart->{id}", receipt_email => $c->param('stripeEmail'), source => $c->param('stripeToken')} => sub {
+    my ($ua, $tx) = @_;
+    $c->orders->save($c->param('id'), {stripe => j($tx->res->json)}); # Why j() here on save (update) but not on add (insert)?
+    $c->flash(seller_message => $tx->res->json->{outcome}->{seller_message}, id => $c->param('id'))->redirect_to($c->url_for('store', store => $c->param('store')));
+  });
+} => 'send-money';
+get '/#whatever' => sub { shift->reply->not_found };
+
+app->start;
+
+__DATA__
+
+@@ home.html.ep
+% layout 'default';
+% title 'Adams Store';
+% content headline => '';
+% content main_form => '';
+% content overlay => begin
+  <h2>We offer all kinds of products!</h2>
+  <ul>
+    <li>Shirts</li>
+  </ul>
+  <p>That's really it.</p>
+% end
+% content solid => begin
+  <p>We have these store options available for you:</p>
+  <ul>
+    % foreach my $store ( keys %{$c->app->config('stores')} ) {
+    <li><%= link_to $c->app->config('stores')->{$store}->{storename} => "/$store" %></li>
+    % }
+  </ul>
+% end
+
+@@ store.html.ep
+% layout 'default';
+% title "$config->{storename} Shirts";
+% content headline => '';
+% content main_form => '';
+% content overlay => begin
+  <h3>Welcome!</h3>
+% end
+% content solid => begin
+  % if ( flash 'seller_message' ) {
+    <!-- Thank You Modal -->
+    <div class="modal show" id="myModal" role="dialog">
+      <div class="modal-dialog">
+      
+        <!-- Modal content-->
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" onclick = "$('.modal').removeClass('show').addClass('fade');">&times;</button>
+            % if ( $c->orders->paid(flash 'id') ) {
+            <h4 class="modal-title">Thank You!</h4>
+            % } else {
+            <h4 class="modal-title">Uh oh!</h4>
+            % }
+          </div>
+          <div class="modal-body">
+            % if ( $c->orders->paid(flash 'id') ) {
+            <p>Thank you so much, from the bottom of my heart!!</p>
+            <%= image "/$store/thankyou.jpg" %>
+            % } else {
+            <p>Something went wrong with your order!  It breaks my heart!</p>
+            <%= image "/$store/uhoh.jpg" %>
+            % }
+            % if ( app->mode eq 'development' && flash 'id' ) {
+            <p>Order <%= flash 'id' %> - <%= flash 'seller_message' %></p>
+            % }
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal" onclick = "$('.modal').removeClass('show').addClass('fade');">Close</button>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  % }
+  <div class="main-wrapper">
+    %# https://codepen.io/mjweaver01/pen/yerzox
+    <div id="vue">
+      <cart :cart="cart" :cart-sub-total="cartSubTotal" :tax="tax" :cart-total="cartTotal" :checkout-bool="checkoutBool"></cart>
+      <products :cart="cart" :cart-sub-total="cartSubTotal" :tax="tax" :cart-total="cartTotal" :products-data="productsData"></products>
+      <checkout-area v-if="checkoutBool" :cart="cart" :tax="tax" :cart-sub-total="cartSubTotal" :cart-total="cartTotal" :products-data="productsData" :total-with-tax="totalWithTax"></checkout-area>
+      </div>
+  </div>
+  %= javascript "/$store/store.js"
+% end
+
+@@ mightymikk.html.ep
+% extends 'store';
+% my $livemode = is_production ? 'true' : 'false';
+% content overlay => begin
+  <h2>Amount Raised: <%= $c->pg->db->query(q(select sum(carttotal)::float8::numeric::money as total from orders where store='mightymikk' and stripe_token is not null and stripe->>'livemode'=?), $livemode)->hash->{total} %></h2>
+  <p>On April 5th, our very own superhero, Mikayla also known as Mighty MiKK, will have open heart surgery,
+  allowing her heart to beat normally for the first time.  We feel fortunate to live in both a place where
+  excellent care is available and in a time where research is advanced enough to give Mikayla a high chance of
+  a normal, healthy life.  I am so grateful for the research done on Congenital Heart Defects (CHD) funded by
+  organizations such as <%= link_to "The Children's Heart Foundation (CHF)" => 'http://www.childrensheartfoundation.org/' %>
+  and <%= link_to 'Ollie Hinkle Heart Foundation (OHHF)' => 'https://www.olliehinkleheartfoundation.com/' %>.
+  More must be done to provide support for families of heart warriors, improve treatment outcomes,
+  advance surgical procedures, and address secondary health concerns occurring as heart warriors are living
+  longer that still need effective treatments.</p>
+  <p>Show your support for Team Mighty MiKK and all the other brave heart warriors out there by helping us reach
+  our goal of selling 60 shirts, raising $1,000 for OHHF and/or CHF.  We also invite you to join Mikayla for
+  her first race back at the <%= link_to 'LoveRun' => 'http://www.loverunstl.com/' %> on May 20th! At
+  registration indicate you are on Team "Mighty MiKK" and wear your shirt!
+  <span style="color:blue;font-size:12px">Read more about <%= link_to 'CHDs' => 'http://www.childrensheartfoundation.org/about-chf/fact-sheets' %>
+  and <%= link_to 'Mikayla\'s Story' => 'story', store => $store %>...</span></p>
+% end
+
+@@ purchase.html.ep
+% extends 'store';
+% content solid => begin
+  %= form_for 'send-money' => {store => $store, id => param 'id'} => (method => 'POST') => begin
+    <div class="table">
+      <h3>Shipping Information</h3>
+      %= label_for name => 'Name', class => 'left'
+      %= text_field 'name', class => 'right'
+      <br>
+      %= label_for address => 'Address', class => 'left'
+      %= text_field 'address', class => 'right'
+      <br>
+      %= label_for city => 'City', class => 'left'
+      %= text_field 'city', class => 'right'
+      <br>
+      %= label_for state => 'State', class => 'left'
+      %= text_field 'state', class => 'right'
+      <br>
+      %= label_for zip => 'Zip', class => 'left'
+      %= text_field 'zip', class => 'right'
+    </div>
+    <script
+      src="https://checkout.stripe.com/checkout.js" class="stripe-button"
+      data-key="<%= $c->stripe->key('public') %>"
+      data-amount="<%= $cart->{carttotal} * 100 %>"
+      data-name="adams.fm"
+      data-description="Widget"
+      data-image="https://stripe.com/img/documentation/checkout/marketplace.png"
+      data-locale="auto">
+    </script>
+  % end
+  %= link_to Cancel => 'store', store => $store
+% end
+
+@@ not_found.html.ep
+% extends 'store';
+% content headline => '';
+% content main_form => '';
+% content overlay => begin
+  <h3>Are you lost?</h3>
+% end
+% content solid => begin
+<p><%= link_to 'Back to the Store!' => 'store', store => $store %></p>
+<%= image "/$store/uhoh.jpg" %>
+% end
+
+@@ exception.html.ep
+% extends 'store';
+% content headline => '';
+% content main_form => '';
+% content overlay => begin
+  <h3>Something went wrong!</h3>
+% end
+% content solid => begin
+<p><%= link_to 'Back to the Store!' => 'store', store => $store %></p>
+<%= image "/$store/uhoh.jpg" %>
+% end

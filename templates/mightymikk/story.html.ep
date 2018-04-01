@@ -1,0 +1,21 @@
+% extends 'store';
+% content overlay => begin
+<h2>Mikayla's Story<h2>
+% end
+% content solid => begin
+<p>October 2016, Stefan and I excitedly attended our 20 week ultrasound. To us, the ultrasound looked good, all was normal! We saw her flailing legs and arms, 10 toes, 2 hands, a healthy brain, 2 eyes, this is good! As the technician left the room to go get the doctor, normal procedure, ironically, I told Stefan, thinking I knew my anatomy real well, "The heart looked good, 4 chambers, that's what we want!" We concluded that there was no reason for Stefan to miss more work and he left the appointment early as the doctor was taking a long time.<p>
+
+<p>The doctor finally came to the room after a long wait and said that there was an issue with her kidney and her heart. That we would be monitoring both and I was to come back Monday. We were leaving for an extended trip that next week and I needed to postpone the appointment. He wasn't concerned about her kidney and had told me that she had what was called a Ventricular Septal Defect (VSD) in her heart. Of course, I researched this thoroughly and confidently concluded that it will close on it's own, as many of them do.</p>
+
+<p>When we returned from our trip, I was so confident it would be closed, I went to the November 2016 appointment on my own, prepared to hear the good news. Unfortunately, there was nothing that could have prepared me for that day. It was at this appointment that I was informed that our unborn baby girl had a heart defect much more severe than what they first thought, that she may need surgery as soon as she was born, and that she had a 33% chance of having Down's Syndrome as well. After getting an appointment with the cardiologist and meeting the high risk doctors, I called Stefan to tell him this information. He came to meet me at the cardiologist the next hour for further testing.</p>
+
+<p>After lots of testing, amniocentesis and weeks of waiting, we finally had our answers. Genetically they found no cause for the defect; she did not have Down's Syndrome nor any other genetic mutation that commonly causes heart defects, but she did have a <%= link_to 'Transitional Atrioventricular Canal' => 'http://www.childrensheartclinic.org/downloads/8/2017/11/AVSDpartial.pdf' %> that would require open heart surgery between 9 months and 1 year of age. We were assured prognosis was good for her and her cardiologist told us that we'd likely be questioning whether he's making things up because she would act completely normal. He was right!</p>
+
+<p>Mikayla's first year of life has been nothing short of wonderful. She is energetic, observant, and funny! She loves animals and being outside. She looks, acts, and has developed like any other baby. Her tender heart has compensated to allow her to run, laugh and play like any other toddler. It's easy for us to be convinced her heart is just fine. Of course, the echos show us differently. Her heart can compensate for now, but not forever and the longer we wait the more likely for complications to occur.</p>
+
+<p>Therefore, Mikayla will be having surgery on April 5th. After scrubbing her down the night before with a special soap and feeding her no solid food after midnight, we are to arrive at Cardinal Glennon and 5AM, this will mean leaving our house just after 4AM. Anyhow, it sounds like we will stay with her during pre-op testings and such and the procedure will start around 7 AM. She's such a tough cookie, I know she will handle this like a champ!</p>
+
+<p>Leading up to this surgery, I have recognized distracting myself to be a useful coping strategy...this distraction got me to thinking that it'd be fun to see Mikayla walk out of the hospital in full superhero attire. At first, I thought having a Wonder Woman costume would be cute and then I realized that the Wonder Woman logo upside down was two 'M's and the perfect base for a Mighty MiKK logo. Thus, we had a very talented woman create Mikayla her very own superhero logo.</p>
+
+<p>We desire to give back to the resources that make life of heart warriors and their families better and after seeing how awesome these shirts were, we wondered if our family and friends would like to purchase some and we could donate the proceeds to these awesome charities!</p>
+% end
