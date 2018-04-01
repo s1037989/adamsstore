@@ -83,7 +83,7 @@ get '/purchase/:id' => sub {
 post '/send-money/:id' => sub {
   my $c = shift;
   $c->render_later;
-  $c->orders->save($c->param('id'), {stripe_token => $c->param('stripeToken'), email => $c->param('stripeEmail'), name => $c->param('name')});
+  $c->orders->save($c->param('id'), {stripe_token => $c->param('stripeToken'), email => $c->param('stripeEmail'), map { $_ => $c->param($_) } qw/name address city state zip/});
   my $cart = $c->orders->find($c->param('id'));
   my $sk = $c->stripe->key('secret');
   $c->ua->post("https://$sk\@api.stripe.com/v1/charges" => form => {amount => $cart->{carttotal} * 100, currency => 'usd', description => "Order $cart->{id}", receipt_email => $c->param('stripeEmail'), source => $c->param('stripeToken')} => sub {
