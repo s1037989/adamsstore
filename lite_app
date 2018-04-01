@@ -193,7 +193,7 @@ __DATA__
   advance surgical procedures, and address secondary health concerns occurring as heart warriors are living
   longer that still need effective treatments.</p>
   <p>Show your support for Team Mighty MiKK and all the other brave heart warriors out there by helping us reach
-  our goal of selling 60 shirts, raising $1,000 for OHHF and/or CHF.  We also invite you to join Mikayla for
+  our goal of selling 60 shirts, raising $1,500 for OHHF and/or CHF.  We also invite you to join Mikayla for
   her first race back at the <%= link_to 'LoveRun' => 'http://www.loverunstl.com/' %> on May 20th! At
   registration indicate you are on Team "Mighty MiKK" and wear your shirt!
   <span style="color:blue;font-size:12px">Read more about <%= link_to 'CHDs' => 'http://www.childrensheartfoundation.org/about-chf/fact-sheets' %>
