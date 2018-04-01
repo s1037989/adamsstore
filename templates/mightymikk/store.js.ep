@@ -450,7 +450,7 @@ var vue = new Vue({
       {
         sku: 1004,
         product: "Infant",
-        image: "<%= url_for '/mightymikk/MMshirtInfant.png' %>",
+        image: "<%= url_for '/mightymikk/MMshirtMM.png' %>",
         description: "Infant",
         details: "",
         sizing: "",
