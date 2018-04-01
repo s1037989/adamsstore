@@ -7,6 +7,7 @@ use Mojo::Pg;
 use Mojo::JSON 'j';
 
 plugin 'Config';
+plugin 'Sendgrid';
 plugin AssetPack => {
   pipes => [qw(Sass Css JavaScript Fetch Combine)]
 };
@@ -85,10 +86,13 @@ post '/send-money/:id' => sub {
   $c->render_later;
   $c->orders->save($c->param('id'), {stripe_token => $c->param('stripeToken'), email => $c->param('stripeEmail'), map { $_ => $c->param($_) } qw/name address city state zip/});
   my $cart = $c->orders->find($c->param('id'));
+  my $_cart = j($cart->{cart});
   my $sk = $c->stripe->key('secret');
   $c->ua->post("https://$sk\@api.stripe.com/v1/charges" => form => {amount => $cart->{carttotal} * 100, currency => 'usd', description => "Order $cart->{id}", receipt_email => $c->param('stripeEmail'), source => $c->param('stripeToken')} => sub {
     my ($ua, $tx) = @_;
     $c->orders->save($c->param('id'), {stripe => j($tx->res->json)}); # Why j() here on save (update) but not on add (insert)?
+    $c->app->log->debug(sprintf 'New %s(%s) Order: %s', $c->param('store'), $tx->res->json->{livemode}, $c->param('name')) and $c->sendgrid->mail(to => $c->app->config('notify'), from => 'store@adams.fm', subject => sprintf('%s just bought %s shirts', $c->param('name'), $#$_cart+1), text => ' ')->send
+      if $tx->res->json->{paid} && $tx->res->json->{livemode};
     $c->flash(seller_message => $tx->res->json->{outcome}->{seller_message}, id => $c->param('id'))->redirect_to($c->url_for('store', store => $c->param('store')));
   });
 } => 'send-money';

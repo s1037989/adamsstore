@@ -7,6 +7,10 @@
     pk_live => 'pk_live_',
     sk_live => 'sk_live_',
   },
+  notify => 'some@email.com',
+  sendgrid => {
+    apikey => '*** get your own damn key ***',
+  },
   stores => {
     coolname => {
       storename => 'The Cool Store',
