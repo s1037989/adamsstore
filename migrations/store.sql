@@ -28,3 +28,9 @@ alter table orders drop column if exists address;
 alter table orders drop column if exists city;
 alter table orders drop column if exists state;
 alter table orders drop column if exists zip;
+
+-- 3 up
+alter table orders add column processed boolean;
+
+-- 3 down
+alter table orders drop column if exists processed;
