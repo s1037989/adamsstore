@@ -6,7 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
         <title><%= is_production ? '' : 'Stripe Test: ' %><%= title %></title>
         % if ( $store ) {
-        <link rel="shortcut icon" type="image/png" href="/<%= $store %>/favicon.png"/>
+        <link rel="icon" type="image/png" href="/<%= $store %>/favicon.png" />
         % }
         %= stylesheet '/assets/css/main.css'
         % if ( $store ) {

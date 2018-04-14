@@ -6,6 +6,8 @@ use Store::Model::Orders;
 use Mojo::Pg;
 use Mojo::JSON 'j';
 
+push @{app->commands->namespaces}, 'Store::Command';
+
 plugin 'Config';
 plugin 'Sendgrid';
 plugin AssetPack => {

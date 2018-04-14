@@ -16,9 +16,17 @@ sub find {
   return $self->pg->db->select('orders', undef, {id => $id})->hash;
 }
 
+sub not_processed {
+  shift->pg->db->query(q[select id,timestamp::date,email,name,address,city,state,zip,json_array_elements(cart)->>'sku' sku,json_array_elements(cart)->>'product' product,json_array_elements(cart)->>'size' size from orders where store='mightymikk' and stripe->>'livemode'='true' and stripe->>'paid'='true' and (processed=false or processed is null) order by id]);
+}
+
 sub paid {
   my ($self, $id) = @_;
   return $self->pg->db->query(q(select id from orders where id=? and stripe->>'paid'='true'), $id)->rows;
+}
+
+sub process {
+  shift->pg->db->query(q[update orders set processed=true where store='mightymikk' and stripe->>'livemode'='true' and stripe->>'paid'='true' and (processed=false or processed is null)]);
 }
 
 sub remove {
