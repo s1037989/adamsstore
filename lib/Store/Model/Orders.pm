@@ -17,7 +17,7 @@ sub find {
 }
 
 sub not_processed {
-  shift->pg->db->query(q[select id,timestamp::date,email,name,address,city,state,zip,json_array_elements(cart)->>'sku' sku,json_array_elements(cart)->>'product' product,json_array_elements(cart)->>'size' size from orders where store='mightymikk' and stripe->>'livemode'='true' and stripe->>'paid'='true' and (processed=false or processed is null) order by id]);
+  shift->pg->db->query(q[select id,timestamp::date,email,name,address,city,state,zip,json_array_elements(cart)->>'sku' sku,json_array_elements(cart)->>'product' product,json_array_elements(cart)->>'size' size from orders where store=? and stripe->>'livemode'='true' and stripe->>'paid'='true' and (processed=false or processed is null) order by id], shift);
 }
 
 sub paid {
@@ -26,7 +26,7 @@ sub paid {
 }
 
 sub process {
-  shift->pg->db->query(q[update orders set processed=true where store='mightymikk' and stripe->>'livemode'='true' and stripe->>'paid'='true' and (processed=false or processed is null)]);
+  shift->pg->db->query(q[update orders set processed=true where store=? and stripe->>'livemode'='true' and stripe->>'paid'='true' and (processed=false or processed is null)], shift);
 }
 
 sub remove {

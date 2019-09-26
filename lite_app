@@ -74,6 +74,7 @@ get '/store' => {format => 'js'} => sub {
 };
 post '/checkout' => sub {
   my $c = shift;
+  return $c->reply->not_found unless $c->req->json->{store} eq $c->param('store');
   my $id = $c->orders->add($c->req->json);
   $c->render(json => $id ? {id => $id} : {});
 };
@@ -127,11 +128,34 @@ __DATA__
 
 @@ store.html.ep
 % layout 'default';
-% title "$config->{storename} Shirts";
+% title "$config->{storename} Store";
 % content headline => '';
 % content main_form => '';
 % content overlay => begin
   <h3>Welcome!</h3>
+% end
+% content solid => '';
+
+@@ mightymikk.html.ep
+% extends 'store';
+% my $livemode = is_production ? 'true' : 'false';
+% content overlay => begin
+  <h2>Amount Raised: <%= $c->pg->db->query(q(select sum(carttotal)::float8::numeric::money as total from orders where store='mightymikk' and stripe_token is not null and stripe->>'livemode'=?), $livemode)->hash->{total} %></h2>
+  <p>On April 5th, our very own superhero, Mikayla also known as Mighty MiKK, will have open heart surgery,
+  allowing her heart to beat normally for the first time.  We feel fortunate to live in both a place where
+  excellent care is available and in a time where research is advanced enough to give Mikayla a high chance of
+  a normal, healthy life.  I am so grateful for the research done on Congenital Heart Defects (CHD) funded by
+  organizations such as <%= link_to "The Children's Heart Foundation (CHF)" => 'http://www.childrensheartfoundation.org/' %>
+  and <%= link_to 'Ollie Hinkle Heart Foundation (OHHF)' => 'https://www.olliehinkleheartfoundation.com/' %>.
+  More must be done to provide support for families of heart warriors, improve treatment outcomes,
+  advance surgical procedures, and address secondary health concerns occurring as heart warriors are living
+  longer that still need effective treatments.</p>
+  <p>Show your support for Team Mighty MiKK and all the other brave heart warriors out there by helping us reach
+  our goal of selling 60 shirts, raising $1,500 for OHHF and/or CHF.  We also invite you to join Mikayla for
+  her first race back at the <%= link_to 'LoveRun' => 'http://www.loverunstl.com/' %> on May 20th! At
+  registration indicate you are on Team "Mighty MiKK" and wear your shirt!
+  <span style="color:blue;font-size:12px">Read more about <%= link_to 'CHDs' => 'http://www.childrensheartfoundation.org/about-chf/fact-sheets' %>
+  and <%= link_to 'Mikayla\'s Story' => 'story', store => $store %>...</span></p>
 % end
 % content solid => begin
   % if ( flash 'seller_message' ) {
@@ -180,26 +204,57 @@ __DATA__
   %= javascript "/$store/store.js"
 % end
 
-@@ mightymikk.html.ep
+@@ ge.html.ep
 % extends 'store';
 % my $livemode = is_production ? 'true' : 'false';
 % content overlay => begin
-  <h2>Amount Raised: <%= $c->pg->db->query(q(select sum(carttotal)::float8::numeric::money as total from orders where store='mightymikk' and stripe_token is not null and stripe->>'livemode'=?), $livemode)->hash->{total} %></h2>
-  <p>On April 5th, our very own superhero, Mikayla also known as Mighty MiKK, will have open heart surgery,
-  allowing her heart to beat normally for the first time.  We feel fortunate to live in both a place where
-  excellent care is available and in a time where research is advanced enough to give Mikayla a high chance of
-  a normal, healthy life.  I am so grateful for the research done on Congenital Heart Defects (CHD) funded by
-  organizations such as <%= link_to "The Children's Heart Foundation (CHF)" => 'http://www.childrensheartfoundation.org/' %>
-  and <%= link_to 'Ollie Hinkle Heart Foundation (OHHF)' => 'https://www.olliehinkleheartfoundation.com/' %>.
-  More must be done to provide support for families of heart warriors, improve treatment outcomes,
-  advance surgical procedures, and address secondary health concerns occurring as heart warriors are living
-  longer that still need effective treatments.</p>
-  <p>Show your support for Team Mighty MiKK and all the other brave heart warriors out there by helping us reach
-  our goal of selling 60 shirts, raising $1,500 for OHHF and/or CHF.  We also invite you to join Mikayla for
-  her first race back at the <%= link_to 'LoveRun' => 'http://www.loverunstl.com/' %> on May 20th! At
-  registration indicate you are on Team "Mighty MiKK" and wear your shirt!
-  <span style="color:blue;font-size:12px">Read more about <%= link_to 'CHDs' => 'http://www.childrensheartfoundation.org/about-chf/fact-sheets' %>
-  and <%= link_to 'Mikayla\'s Story' => 'story', store => $store %>...</span></p>
+<p>Hi!</p>
+% end
+% content solid => begin
+  % if ( flash 'seller_message' ) {
+    <!-- Thank You Modal -->
+    <div class="modal show" id="myModal" role="dialog">
+      <div class="modal-dialog">
+      
+        <!-- Modal content-->
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" onclick = "$('.modal').removeClass('show').addClass('fade');">&times;</button>
+            % if ( $c->orders->paid(flash 'id') ) {
+            <h4 class="modal-title">Thank You!</h4>
+            % } else {
+            <h4 class="modal-title">Uh oh!</h4>
+            % }
+          </div>
+          <div class="modal-body">
+            % if ( $c->orders->paid(flash 'id') ) {
+            <p>Thank you!</p>
+            <%= image "/$store/thankyou.jpg" %>
+            % } else {
+            <p>Something went wrong with your order!</p>
+            <%= image "/$store/uhoh.jpg" %>
+            % }
+            % if ( app->mode eq 'development' && flash 'id' ) {
+            <p>Order <%= flash 'id' %> - <%= flash 'seller_message' %></p>
+            % }
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal" onclick = "$('.modal').removeClass('show').addClass('fade');">Close</button>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  % }
+  <div class="main-wrapper">
+    %# https://codepen.io/mjweaver01/pen/yerzox
+    <div id="vue">
+      <cart :cart="cart" :cart-sub-total="cartSubTotal" :tax="tax" :cart-total="cartTotal" :checkout-bool="checkoutBool"></cart>
+      <products :cart="cart" :cart-sub-total="cartSubTotal" :tax="tax" :cart-total="cartTotal" :products-data="productsData"></products>
+      <checkout-area v-if="checkoutBool" :cart="cart" :tax="tax" :cart-sub-total="cartSubTotal" :cart-total="cartTotal" :products-data="productsData" :total-with-tax="totalWithTax"></checkout-area>
+      </div>
+  </div>
+  %= javascript "/$store/store.js"
 % end
 
 @@ purchase.html.ep

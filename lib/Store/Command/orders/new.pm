@@ -7,8 +7,11 @@ has description => 'View new orders';
 has usage => sub { shift->extract_usage };
 
 sub run {
-  my ($self, $class) = @_;
-  say to_csv($self->app->orders->not_processed->arrays);
+  my ($self, @args) = @_;
+
+  die $self->usage unless my $store = shift @args;
+
+  say to_csv($self->app->orders->not_processed($store)->arrays);
 }
 
 1;
@@ -23,7 +26,7 @@ Store::Command::orders::new - View new orders command
 
   Usage: APPLICATION orders new [OPTIONS]
 
-    mojo orders new
+    mojo orders new [store_name]
 
   Options:
     -h, --help   Show this summary of available options

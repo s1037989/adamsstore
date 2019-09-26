@@ -7,9 +7,12 @@ has description => 'Process new orders';
 has usage => sub { shift->extract_usage };
 
 sub run {
-  my ($self, $class) = @_;
+  my ($self, @args) = @_;
+
+  die $self->usage unless my $store = shift @args;
+
   say to_csv($self->app->orders->not_processed->arrays);
-  $self->app->orders->process;
+  $self->app->orders->process($store);
 }
 
 1;
@@ -24,7 +27,7 @@ Store::Command::orders::process - Process new orders command
 
   Usage: APPLICATION orders process [OPTIONS]
 
-    mojo orders process
+    mojo orders process [store_name]
 
   Options:
     -h, --help   Show this summary of available options
