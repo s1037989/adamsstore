@@ -1,0 +1,7 @@
+% extends 'store';
+% content overlay => begin
+<h2>Books 4 Hearts<h2>
+% end
+% content solid => begin
+<p>Welcome!</p>
+% end

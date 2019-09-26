@@ -1,0 +1,7 @@
+% extends 'store';
+% content overlay => begin
+<h2>Gerald and Ena Adams Family Store<h2>
+% end
+% content solid => begin
+<p>Thanks.</p>
+% end

@@ -1,0 +1,567 @@
+// https://codepen.io/mjweaver01/pen/yerzox
+
+//@TODO NOTIFICATIONS
+
+//---------
+// Vue components
+//---------
+Vue.component('products', {
+  
+  ready: function () {
+    var self = this;
+    document.addEventListener("keydown", function(e) {
+      if (self.showModal && e.keyCode == 37) {
+        self.changeProductInModal("prev");
+      } else if (self.showModal && e.keyCode == 39) {
+        self.changeProductInModal("next");
+      } else if (self.showModal && e.keyCode == 27) {
+        self.hideModal();
+      }
+    });
+  },
+
+  template: "<div class='products'>" +
+  "<div v-for='product in productsData' track-by='$index' class='product {{ product.product | lowercase }}'>" + 
+    //"<div class='image' @click='viewProduct(product)' v-bind:style='{ backgroundImage: \"url(\" + product.image + \")\" }' style='background-size: cover; background-position: center;'></div>" +
+    "<div class='image' v-bind:style='{ backgroundImage: \"url(\" + product.image + \")\" }' style='background-size: cover; background-position: center;'></div>" +
+    "<div class='name'>{{ product.product }}</div>" +
+    //"<div class='description'>{{ product.description }}</div>" +
+    //"<div class='person'>Person this item is for:<br/><input v-model='product.person'></div>" +
+    "<div v-if='product.sizes' class='price'>" +
+      "Size: <select v-model='product.selected'>" +
+      "<option v-for='size in product.sizes' v-bind:value='size'>" +
+      "  {{ size.size }} ({{ size.price | currency }})" +
+      "</option>" +
+      "</select>" +  
+    "</div>" +
+    "<div v-else>Price: {{product.price | currency}}</div>" +
+    "<div v-if='product.sizing'><a href=\"{{ product.sizing }}\">Sizing Chart</a></div>" +
+    "<div v-else>No Sizing Chart</div>" +
+    "<div v-if='product.specs'><a href=\"{{ product.specs }}\">Shirt Specifications</a></div>" +
+    "<div v-else>No Shirt Specifications</div>" +
+    "<button @click='addToCart(product)'>Add to Cart</button><br><br></div>" +
+  "</div>"+
+  
+  "<div class='modalWrapper' v-show='showModal'>" +
+  "<div class='prevProduct' @click='changeProductInModal(\"prev\")'><i class='fa fa-angle-left'></i></div>" +
+  "<div class='nextProduct' @click='changeProductInModal(\"next\")'><i class='fa fa-angle-right'></i></div>" +
+  "<div class='overlay' @click='hideModal()'></div>" + 
+  "<div class='modal'>" + 
+  "<i class='close fa fa-times' @click='hideModal()'></i>" + 
+  "<div class='imageWrapper'><div class='image' v-bind:style='{ backgroundImage: \"url(\" + modalData.image + \")\" }' style='background-size: cover; background-position: center;' v-on:mouseover='imageMouseOver($event)' v-on:mousemove='imageMouseMove($event)' v-on:mouseout='imageMouseOut($event)'></div></div>" +
+  "<div class='additionalImages' v-if='modalData.images'>" + 
+  "<div v-for='image in modalData.images' class='additionalImage' v-bind:style='{ backgroundImage: \"url(\" + image.image + \")\" }' style='background-size: cover; background-position: center;' @click='changeImage(image.image)'></div>" +
+  "</div>" +
+  "<div class='name'>{{ modalData.product }}</div>" +
+  //"<div class='description'>{{ modalData.description }}</div>" +
+  //"<div class='details'>{{ modalData.details }}</div>" +
+  "<h3 class='price'>{{ modalData.price | currency }}</h3>" +
+  //"<label for='modalAmount'>QTY</label>" +
+  //"<input id='modalAmount' value='{{ modalAmount }}' v-model='modalAmount' class='amount' @keyup.enter='modalAddToCart(modalData), hideModal()'/>" +
+  //"<button @click='modalAddToCart(modalData), hideModal()'>Add to Cart</button>" +
+  "</div></div>",
+  
+
+  props: ['productsData', 'cart', 'tax', 'cartSubTotal', 'cartTotal'],
+
+  data: function() {
+    return {
+      showModal: false,
+      modalData: {},
+      modalAmount: 1,
+      timeout: "",
+      mousestop: ""
+    }
+  },
+
+  methods: {
+    addToCart: function(product) {
+      //if ( product.person ) {
+      //  console.log("Has: person");
+        if ( product.price ) {
+          console.log("Has: price");
+          vue.cart.push({product: product.product, description: product.description, image: product.image, sku: product.sku, person: product.person, price: product.price});
+          vue.cartSubTotal = vue.cartSubTotal + product.price;
+        } else {
+          console.log("No: price");
+          if ( product.selected ) {
+            console.log("Has: option");
+            vue.cart.push({product: product.product, description: product.description, image: product.image, sku: product.sku+"-"+product.selected.subsku, person: product.person, size: product.selected.size, price: product.selected.price});
+            vue.cartSubTotal = vue.cartSubTotal + product.selected.price;
+          } else {
+            console.log("No: option");
+          }
+        }
+
+        vue.cartTotal = vue.cartSubTotal + (vue.tax * vue.cartSubTotal);
+        vue.checkoutBool = true;
+        
+        product.person='';
+        product.selected='';
+      //} else {
+      //  console.log("No: person");
+      //}
+    },
+
+    modalAddToCart: function(modalData) {
+      var self = this;
+
+      for(var i = 0; i < self.modalAmount; i++) {
+        self.addToCart(modalData);
+      }
+
+      self.modalAmount = 1;
+    },
+
+    viewProduct: function(product) {      
+      var self = this;
+      //self.modalData = product;
+      self.modalData = (JSON.parse(JSON.stringify(product)));
+      self.showModal = true;
+    },
+
+    changeProductInModal: function(direction) {
+      var self = this,
+          productsLength = vue.productsData.length,
+          currentProduct = self.modalData.sku,
+          newProductId,
+          newProduct;
+
+      if(direction === "next") {
+        newProductId = currentProduct + 1;
+
+        if(currentProduct >= productsLength) {
+          newProductId = 1;
+        }
+
+      } else if(direction === "prev") {
+        newProductId = currentProduct - 1;
+
+        if(newProductId === 0) {
+          newProductId = productsLength;
+        }
+      }
+
+      //console.log(direction, newProductId);
+
+      for (var i = 0; i < productsLength; i++) {
+        if (vue.productsData[i].sku === newProductId) {
+          self.viewProduct(vue.productsData[i]);
+        }
+      }
+    },
+
+    hideModal: function() {
+      //hide modal and empty modal data
+      var self = this;
+      self.modalData = {};
+      self.showModal = false;
+    },
+
+    changeImage: function(image) {
+      var self = this;
+      self.modalData.image = image;
+    },
+
+    imageMouseOver: function(event) {
+      event.target.style.transform = "scale(2)";
+    },
+
+    imageMouseMove: function(event) {
+      var self = this;
+      
+      event.target.style.transform = "scale(2)";
+      
+      self.timeout = setTimeout(function() {
+        event.target.style.transformOrigin = ((event.pageX - event.target.getBoundingClientRect().left) / event.target.getBoundingClientRect().width) * 100 + '% ' + ((event.pageY - event.target.getBoundingClientRect().top - window.pageYOffset) / event.target.getBoundingClientRect().height) * 100 + "%";
+      }, 50);
+      
+      self.mouseStop = setTimeout(function() {
+        event.target.style.transformOrigin = ((event.pageX - event.target.getBoundingClientRect().left) / event.target.getBoundingClientRect().width) * 100 + '% ' + ((event.pageY - event.target.getBoundingClientRect().top - window.pageYOffset) / event.target.getBoundingClientRect().height) * 100 + "%";
+      }, 100);
+    },
+
+    imageMouseOut: function(event) {
+      event.target.style.transform = "scale(1)";
+    }
+  }
+});
+
+Vue.component('cart', {
+  template: '<div class="cart">' + 
+  '<span class="cart-size" @click="showCart = !showCart"> {{ cart | cartSize }} </span><i class="fa fa-shopping-cart" @click="showCart = !showCart"></i>' +
+  '<div class="cart-items" v-show="showCart">' +
+  '<table class="cartTable">' +
+  '<tbody>' +
+  '<tr class="product" v-for="product in cart" track-by="$index">' +
+  '<td class="align-left"><div class="cartImage" @click="removeProduct(product)" v-bind:style="{ backgroundImage: \'url(\' + product.image + \')\' }" style="background-size: cover; background-position: center;"><i class="close fa fa-times"></i></div></td>' +
+  '<td v-if="product.size" class="align-center">{{product.product}} {{product.size}}</td>' +
+  '<td v-else class="align-center">{{product.product}}</td>' +
+  '<td class="align-center">{{product.person}}</td>' +
+  '<td>{{ product.price | currency }}</td>' +
+  '</tbody>' +
+  '<table>' +
+  '</div>' +
+  '<h4 class="cartSubTotal" v-show="showCart"> {{ cartSubTotal | currency }} </h4></div>' +
+  '<button class="clearCart" v-show="checkoutBool" @click="clearCart()"> Clear Cart </button>' +
+  '<button class="checkoutCart" v-show="checkoutBool" @click="propagateCheckout()"> Checkout </button>',
+
+  props: ['checkoutBool', 'cart', 'cartSize', 'cartSubTotal', 'tax', 'cartTotal'],
+
+  data: function() {
+    return {
+      showCart: false
+    }
+  },
+
+  filters: {
+    customPluralize: function(cart) {      
+      return cart.product;
+    },
+
+    cartSize: function(cart) {
+      return cart.length;
+    }
+  },
+
+  methods: {
+    removeProduct: function(product) {
+      vue.cart.$remove(product);
+      vue.cartSubTotal = vue.cartSubTotal - product.price;
+      vue.cartTotal = vue.cartSubTotal + (vue.tax * vue.cartSubTotal);
+
+      if(vue.cart.length <= 0) {
+        vue.checkoutBool = false;
+      }
+    },
+
+    clearCart: function() {
+      vue.cart = [];
+      vue.cartSubTotal = 0;
+      vue.cartTotal = 0;
+      vue.checkoutBool = false;
+      this.showCart = false;
+    },
+
+    //send our request up the chain, to our parent
+    //our parent catches the event, and sends the request back down
+    propagateCheckout: function() {
+      vue.$dispatch("checkoutRequest");
+    }
+  }
+});
+
+Vue.component('checkout-area', {
+  template: "<h1>Checkout Area</h1>" + 
+  '<div class="checkout-area">' + 
+  '<span> {{ cart | cartSize }} </span><i class="fa fa-shopping-cart"></i>' +
+  '<table>' +
+  '<thead>' +
+  '<tr>' +
+  '<th class="align-center">SKU</th>' +
+  '<th>Description</th>' +
+  '<th>For</th>' +
+  '<th class="align-right">Price</th>' +
+  '</tr>' +
+  '</thead>' +
+  '<tbody>' +
+  '<tr v-for="product in cart" track-by="$index">' +
+  '<td class="align-center">{{ product.sku }}</td>' +
+  '<td v-if="product.size">{{ product.description }} {{product.size}}</td>' +
+  '<td v-else>{{ product.description }}</td>' +
+  '<td>{{product.person}}</td>' +
+  '<td class="align-right">{{ product.price | currency }}</td>' +
+  '</tr>' +
+  //'<button @click="removeProduct(product)"> X </button></div>' +
+  '<tr>' +
+  '<td>&nbsp;</td>' +
+  '<td>&nbsp;</td>' +
+  '<td>&nbsp;</td>' +
+  '<td>&nbsp;</td>' +
+  '</tr>' +
+  '<tr>' +
+  '<td></td>' +
+  '<td></td>' +
+  '<td class="align-right">Subtotal:</td>' +
+  '<td class="align-right"><h4 v-if="cartSubTotal != 0"> {{ cartSubTotal | currency }} </h4></td>' +
+  '</tr>' +
+  '<tr>' +
+  '<td></td>' +
+  '<td></td>' +
+  '<td class="align-right">Tax:</td>' +
+  '<td class="align-right"><h4 v-if="cartSubTotal != 0"> {{ cartTotal - cartSubTotal | currency }} </h4></td>' +
+  '</tr>' +
+  '<tr>' +
+  '<td></td>' +
+  '<td></td>' +
+  '<td class="align-right vert-bottom">Total:</td>' +
+  '<td class="align-right vert-bottom"><h2 v-if="cartSubTotal != 0"> {{ cartTotal | currency }} </h2></td>' +
+  '</tr>' +
+  '</tbody>' +
+  '</table>' +
+  '<button v-show="cartSubTotal" @click="checkoutModal()">Checkout</button></div>',
+/*
+  "<div class='modalWrapper' v-show='showModal'>" +
+  "<div class='overlay' @click='hideModal()'></div>" + 
+  "<div class='modal checkout'>" + 
+  "<i class='close fa fa-times' @click='hideModal()'></i>" + 
+  "<h1>Checkout</h1>" +
+  "<div>We accept: <i class='fa fa-stripe'></i> <i class='fa fa-cc-visa'></i> <i class='fa fa-cc-mastercard'></i> <i class='fa fa-cc-amex'></i> <i class='fa fa-cc-discover'></i></div><br>" +
+  "<h3> Subtotal: {{ cartSubTotal | currency }} </h3>" +
+  "<h3> Tax: {{ cartTotal - cartSubTotal | currency }} </h4>" +
+  "<h1> Total: {{ cartTotal | currency }} </h3>" +
+  '<br><div><button @click="purchase()">Purchase</button></div>' +
+  "</div>",
+*/
+
+  props: ['cart', 'cartSize', 'cartSubTotal', 'tax', 'cartTotal'],
+
+  data: function() {
+    return {
+      showModal: false
+    }
+  },
+
+  filters: {
+    customPluralize: function(cart) {      
+      var newName;
+
+      return cart.product;
+    },
+
+    cartSize: function(cart) {
+      return cart.length;
+    }
+  },
+
+  methods: {
+    removeProduct: function(product) {
+      vue.cart.$remove(product);
+      vue.cartSubTotal = vue.cartSubTotal - product.price;
+      vue.cartTotal = vue.cartSubTotal + (vue.tax * vue.cartSubTotal);
+
+      if(vue.cart.length <= 0) {
+        vue.checkoutBool = false;
+      }
+    },
+
+    checkoutModal: function() {
+      var self = this;
+      self.showModal = true;
+
+      console.log("CHECKOUT", self.cartTotal);
+      axios.post("<%= url_for 'checkout' %>", {
+        store: '<%= $store %>',
+        cart: JSON.stringify(self.cart),
+        cartSubTotal: self.cartSubTotal,
+        cartTotal: self.cartTotal
+      })
+      .then(function (response) {
+        console.log(response);
+        window.location.replace("<%= url_for 'purchase', store => $store %>"+response.data.id);
+      })
+      .catch(function (error) {
+        console.log(error);
+      });
+    },
+
+    hideModal: function() {
+      //hide modal and empty modal data
+      var self = this;
+      self.showModal = false;
+    }
+  },
+  
+  //intercept the checkout request broadcast
+  //run our function
+  events: {
+    "checkoutRequest": function() {
+      var self = this;
+      self.checkoutModal();
+    }
+  }
+});
+
+//---------
+// Vue init
+//---------
+Vue.config.debug = false;
+var vue = new Vue({
+  el: "#vue",
+
+  data: {
+    productsData: [
+      {
+        sku: 1,
+        product: "In-laws",
+        image: "<%= url_for "/$store/in-laws-district.jpg" %>",
+        description: "In-laws, all-generations / Heathered Red",
+        details: "",
+        sizing: "https://www.apparelvideos.com/cs/CatalogBrowser?todo=mm&productId=DT6000",
+        specs: "https://www.apparelvideos.com/cs/CatalogBrowser?todo=ss&productId=DT6000",
+        sizes: [
+          {subsku: "as", size: "Adult Small", price: 10},
+          {subsku: "am", size: "Adult Medium", price: 10},
+          {subsku: "al", size: "Adult Large", price: 10},
+          {subsku: "axl", size: "Adult X-Large", price: 10},
+          {subsku: "axxl", size: "Adult 2X-Large", price: 11.50},
+          {subsku: "axxxl", size: "Adult 3X-Large", price: 11.50},
+          {subsku: "a4xl", size: "Adult 4X-Large", price: 11.50},
+        ]
+      },
+
+      {
+        sku: 2,
+        product: "2nd Gen",
+        image: "<%= url_for "/$store/2nd-district.jpg" %>",
+        description: "2nd Generation / Heathered Royal Blue",
+        details: "This is where some detailes on monkies would go. This monkey done seent some shit.",
+        sizes: [
+          {subsku: "as", size: "Adult Small", price: 10},
+          {subsku: "am", size: "Adult Medium", price: 10},
+          {subsku: "al", size: "Adult Large", price: 10},
+          {subsku: "axl", size: "Adult X-Large", price: 10},
+          {subsku: "axxl", size: "Adult 2X-Large", price: 11.50},
+          {subsku: "axxxl", size: "Adult 3X-Large", price: 11.50},
+          {subsku: "a4xl", size: "Adult 4X-Large", price: 11.50},
+        ]
+      },
+
+      {
+        sku: 3,
+        product: "3rd Gen",
+        image: "<%= url_for "/$store/3rd-district.jpg" %>",
+        description: "3rd Generation / Heathered Kelly Green",
+        details: "This is where some detailes on monkies would go. This monkey done seent some shit.",
+        sizes: [
+          {subsku: "as", size: "Adult Small", price: 10},
+          {subsku: "am", size: "Adult Medium", price: 10},
+          {subsku: "al", size: "Adult Large", price: 10},
+          {subsku: "axl", size: "Adult X-Large", price: 10},
+          {subsku: "axxl", size: "Adult 2X-Large", price: 11.50},
+          {subsku: "axxxl", size: "Adult 3X-Large", price: 11.50},
+          {subsku: "a4xl", size: "Adult 4X-Large", price: 11.50},
+        ]
+      },
+
+      {
+        sku: 4,
+        product: "4th Gen",
+        image: "<%= url_for "/$store/4th-district.jpg" %>",
+        description: "4th Generation / Heathered Light Turquoise",
+        details: "This is where some detailes on monkies would go. This monkey done seent some shit.",
+        sizes: [
+          {subsku: "as", size: "Adult Small", price: 10},
+          {subsku: "am", size: "Adult Medium", price: 10},
+          {subsku: "al", size: "Adult Large", price: 10},
+          {subsku: "axl", size: "Adult X-Large", price: 10},
+          {subsku: "axxl", size: "Adult 2X-Large", price: 11.50},
+          {subsku: "axxxl", size: "Adult 3X-Large", price: 11.50},
+          {subsku: "a4xl", size: "Adult 4X-Large", price: 11.50},
+          {subsku: "cxs", size: "Child XS", price: 8},
+          {subsku: "cs", size: "Child S", price: 8},
+          {subsku: "cm", size: "Child M", price: 8},
+          {subsku: "cl", size: "Child L", price: 8},
+          {subsku: "cxl", size: "Child XL", price: 8},
+          {subsku: "5t", size: "Toddler: 5T", price: 8},
+          {subsku: "4t", size: "Toddler: 4T", price: 8},
+          {subsku: "3t", size: "Toddler: 3T", price: 8},
+          {subsku: "2t", size: "Toddler: 2T", price: 8},
+          {subsku: "i3", size: "Infant: 3-6mo", price: 6},
+          {subsku: "i6", size: "Infant: 6-9mo", price: 6},
+          {subsku: "i9", size: "Infant: 9-12mo", price: 6}
+        ]
+      },
+
+      {
+        sku: 5,
+        product: "5th Gen",
+        image: "<%= url_for "/$store/5th-gildan.jpg" %>",
+        description: "5th Generation / Daisy (Gildan Shirt)",
+        details: "This is where some detailes on monkies would go. This monkey done seent some shit.",
+        sizes: [
+          {subsku: "as", size: "Adult Small", price: 10},
+          {subsku: "am", size: "Adult Medium", price: 10},
+          {subsku: "al", size: "Adult Large", price: 10},
+          {subsku: "axl", size: "Adult X-Large", price: 10},
+          {subsku: "axxl", size: "Adult 2X-Large", price: 11.50},
+          {subsku: "axxxl", size: "Adult 3X-Large", price: 11.50},
+          {subsku: "cxs", size: "Child XS", price: 8},
+          {subsku: "cs", size: "Child S", price: 8},
+          {subsku: "cm", size: "Child M", price: 8},
+          {subsku: "cl", size: "Child L", price: 8},
+          {subsku: "cxl", size: "Child XL", price: 8},
+          {subsku: "5t", size: "Toddler: 5T", price: 8},
+          {subsku: "4t", size: "Toddler: 4T", price: 8},
+          {subsku: "3t", size: "Toddler: 3T", price: 8},
+          {subsku: "2t", size: "Toddler: 2T", price: 8},
+          {subsku: "i3", size: "Infant: 3-6mo", price: 6},
+          {subsku: "i6", size: "Infant: 6-9mo", price: 6},
+          {subsku: "i9", size: "Infant: 9-12mo", price: 6}
+        ]
+      },
+
+      {
+        sku: 99,
+        product: "Guests",
+        image: "<%= url_for "/$store/guests-district.png" %>",
+        description: "Guests / Heathered Light Gray",
+        details: "This is where some detailes on monkies would go. This monkey done seent some shit.",
+        sizes: [
+          {subsku: "as", size: "Adult Small", price: 10},
+          {subsku: "am", size: "Adult Medium", price: 10},
+          {subsku: "al", size: "Adult Large", price: 10},
+          {subsku: "axl", size: "Adult X-Large", price: 10},
+          {subsku: "axxl", size: "Adult 2X-Large", price: 11.50},
+          {subsku: "axxxl", size: "Adult 3X-Large", price: 11.50},
+          {subsku: "a4xl", size: "Adult 4X-Large", price: 11.50},
+          {subsku: "cxs", size: "Child XS", price: 8},
+          {subsku: "cs", size: "Child S", price: 8},
+          {subsku: "cm", size: "Child M", price: 8},
+          {subsku: "cl", size: "Child L", price: 8},
+          {subsku: "cxl", size: "Child XL", price: 8},
+          {subsku: "5t", size: "Toddler: 5T", price: 8},
+          {subsku: "4t", size: "Toddler: 4T", price: 8},
+          {subsku: "3t", size: "Toddler: 3T", price: 8},
+          {subsku: "2t", size: "Toddler: 2T", price: 8},
+          {subsku: "i3", size: "Infant: 3-6mo", price: 6},
+          {subsku: "i6", size: "Infant: 6-9mo", price: 6},
+          {subsku: "i9", size: "Infant: 9-12mo", price: 6}
+        ]
+      }/*,
+
+      {
+        sku: 100,
+        product: "Annual Dues",
+        image: "<%= url_for "/$store/bill.png" %>",
+        description: "Annual Dues",
+        details: "Annual Dues",
+        price: 5
+      }/*,
+
+      {
+        disable: true,
+        sku: 101,
+        product: "Life-time Dues",
+        image: "<%= url_for "/$store/bills.png" %>",
+        description: "Life-time Dues",
+        details: "Life-time Dues",
+        price: 150
+      }*/
+
+    ],
+    checkoutBool: false,
+    cart: [],
+    cartSubTotal: 0,
+    tax: 0,
+    cartTotal: 0
+  },
+  
+  //intercept the checkout request dispatch
+  //send it back down the chain
+  events: {
+    "checkoutRequest": function() {
+      vue.$broadcast("checkoutRequest");
+    }
+  }
+});
